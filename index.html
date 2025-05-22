@@ -18,9 +18,22 @@
       background: #0f0f0f;
       color: #eee;
       font-family: Arial, sans-serif;
+      margin: 0;
       padding: 20px;
-      max-width: 800px;
-      margin: 0 auto;
+      display: flex;
+      gap: 20px;
+    }
+    .left-panel {
+      flex: 1;
+      max-width: 300px;
+    }
+    .center-panel {
+      flex: 1;
+      max-width: 300px;
+    }
+    .right-panel {
+      flex: 1;
+      max-width: 400px;
     }
     input[type=range], select {
       width: 100%;
@@ -41,6 +54,9 @@
       height: 100%;
       background: linear-gradient(to right, #00f0ff, #0044ff);
       transition: width 0.3s;
+    }
+    .health-fill {
+      background: linear-gradient(to right, #ff5555, #cc0000);
     }
     .maxed {
       background: linear-gradient(to right, #00ff88, #00cc44);
@@ -122,78 +138,141 @@
       color: #aaa;
       margin-top: 5px;
     }
+    .health-display {
+      margin-top: 10px;
+      padding: 10px;
+      background: #1a1a1a;
+      border-radius: 5px;
+      border-left: 4px solid #ff5555;
+    }
+    .damage-level {
+      margin-bottom: 15px;
+    }
+    .damage-level-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .damage-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .damage-value {
+      min-width: 80px;
+    }
+    .health-bar-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+    .health-value {
+      min-width: 80px;
+    }
+    .max-health-value {
+      color: #aaa;
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
-  <h1>Калькулятор Adaptive Strike (Flow)</h1>
-  
-  <div class="section">
-    <h3>Базовые параметры</h3>
-    <label>Уровень героя: <span id="levelVal">30</span></label>
-    <input type="range" min="1" max="30" value="30" id="levelSlider">
+  <div class="left-panel">
+    <h1>Калькулятор Adaptive Strike (Flow)</h1>
     
-    <label>Количество плюсиков: <span id="shardVal">7</span></label>
-    <input type="range" min="0" max="7" value="7" id="shardSlider">
-    
-    <label>
-      <input type="checkbox" id="flowToggle" checked>
-      Flow активен
-    </label>
-  </div>
-
-  <div class="section">
-    <h3>Атрибуты</h3>
-    <p>Пул перекачки: <span id="totalPool" class="highlight">252</span> очков</p>
-    
-    <label>Итоговая Agility: <span id="agiVal">266</span></label>
-    <input type="range" min="14" max="266" value="266" id="agiSlider">
-    <div class="attr-breakdown">
-      Состав: 
-      <span id="baseAgi">14</span> (плюсики) + 
-      <span id="itemsAgi">0</span> (предметы) + 
-      <span id="morphAgi">252</span> (перекачка)
+    <div class="section">
+      <h3>Базовые параметры</h3>
+      <label>Уровень героя: <span id="levelVal">30</span></label>
+      <input type="range" min="1" max="30" value="30" id="levelSlider">
+      
+      <label>Количество плюсиков: <span id="shardVal">7</span></label>
+      <input type="range" min="0" max="7" value="7" id="shardSlider">
+      
+      <label>
+        <input type="checkbox" id="flowToggle" checked>
+        Flow активен
+      </label>
     </div>
-    
-    <label>Итоговая Strength: <span id="strVal">35</span></label>
-    <input type="range" min="35" max="287" value="35" id="strSlider">
-    <div class="attr-breakdown">
-      Состав: 
-      <span id="baseStr">35</span> (плюсики) + 
-      <span id="itemsStr">0</span> (предметы) + 
-      <span id="morphStr">0</span> (перекачка)
+
+    <div class="section">
+      <h3>Атрибуты</h3>
+      <p>Пул перекачки: <span id="totalPool" class="highlight">252</span> очков</p>
+      
+      <label>Итоговая Agility: <span id="agiVal">266</span></label>
+      <input type="range" min="14" max="266" value="266" id="agiSlider">
+      <div class="attr-breakdown">
+        Состав: 
+        <span id="baseAgi">14</span> (плюсики) + 
+        <span id="itemsAgi">0</span> (предметы) + 
+        <span id="morphAgi">252</span> (перекачка)
+      </div>
+      
+      <label>Итоговая Strength: <span id="strVal">35</span></label>
+      <input type="range" min="35" max="287" value="35" id="strSlider">
+      <div class="attr-breakdown">
+        Состав: 
+        <span id="baseStr">35</span> (плюсики) + 
+        <span id="itemsStr">0</span> (предметы) + 
+        <span id="morphStr">0</span> (перекачка)
+      </div>
+      
+      <button id="optimizeBtn">Оптимизировать под макс. множитель</button>
     </div>
-    
-    <button id="optimizeBtn">Оптимизировать под макс. множитель</button>
   </div>
 
-  <div class="section">
-    <h3>Предметы</h3>
-    <select id="itemSelect">
-      <option value="">Выберите предмет...</option>
-      <option value="hurricane_pike">Hurricane Pike (+15str, +20agi, +15int)</option>
-      <option value="dragon_lance">Dragon Lance (+10str, +15agi)</option>
-      <option value="sange_yasha">Sange and Yasha (+16str, +16agi)</option>
-      <option value="butterfly">ButterFly (+35agi)</option>
-      <option value="black_king_bar">Black King Bar (+10str)</option>
-      <option value="yasha">Yasha (+16agi)</option>
-      <option value="manta_style">Manta Style (+10str, +26agi, +10int)</option>
-      <option value="eye_of_skadi">Eye of Skadi (+22 ко всем)</option>
-      <option value="satanic">Satanic (+25str)</option>
-      <option value="linkens_sphere">Linken's Sphere (+16 ко всем)</option>
-      <option value="heart">Heart of Tarrasque (+40str)</option>
-    </select>
-    <div class="items-container" id="itemsContainer"></div>
+  <div class="center-panel">
+    <div class="section">
+      <h3>Предметы</h3>
+      <select id="itemSelect">
+        <option value="">Выберите предмет...</option>
+        <option value="hurricane_pike">Hurricane Pike (+15str, +20agi, +15int, +200hp)</option>
+        <option value="dragon_lance">Dragon Lance (+10str, +15agi)</option>
+        <option value="sange_yasha">Sange and Yasha (+16str, +16agi)</option>
+        <option value="butterfly">ButterFly (+35agi)</option>
+        <option value="black_king_bar">Black King Bar (+10str)</option>
+        <option value="yasha">Yasha (+16agi)</option>
+        <option value="manta_style">Manta Style (+10str, +26agi, +10int)</option>
+        <option value="eye_of_skadi">Eye of Skadi (+22 ко всем, +250hp)</option>
+        <option value="satanic">Satanic (+25str)</option>
+        <option value="linkens_sphere">Linken's Sphere (+16 ко всем)</option>
+        <option value="heart">Heart of Tarrasque (+40str, +250hp)</option>
+      </select>
+      <div class="items-container" id="itemsContainer"></div>
+    </div>
+
+    <div class="section">
+      <h3>Сопротивление магии</h3>
+      <label>Сопротивление магии: <span id="mrVal">25</span>%</label>
+      <input type="range" min="0" max="60" value="25" id="mrSlider">
+    </div>
   </div>
 
-  <div class="section">
-    <h3>Сопротивление магии</h3>
-    <label>Сопротивление магии: <span id="mrVal">25</span>%</label>
-    <input type="range" min="0" max="60" value="25" id="mrSlider">
+  <div class="right-panel">
+    <div class="section">
+      <h3>Результаты</h3>
+      <div id="output"></div>
+      
+      <div class="health-display">
+        <p><strong>Здоровье:</strong> <span id="healthVal">626</span></p>
+        <div class="health-bar-container">
+          <span class="health-value" id="currentHealthDisplay">626</span>
+          <div class="bar">
+            <div class="fill health-fill" id="healthBar" style="width:100%"></div>
+          </div>
+          <span class="max-health-value" id="maxHealthDisplay">626</span>
+        </div>
+        <div class="attr-breakdown">
+          Состав: 
+          <span id="baseHealth">626</span> (база) + 
+          <span id="levelHealth">81.2</span> (уровни) + 
+          <span id="strHealth">0</span> (сила) + 
+          <span id="itemsHealth">0</span> (предметы)
+        </div>
+      </div>
+      
+      <div id="advice"></div>
+      <div id="bars"></div>
+    </div>
   </div>
-
-  <div id="output"></div>
-  <div id="bars"></div>
-  <div id="advice"></div>
 
   <script>
     // Константы
@@ -204,20 +283,25 @@
     const TOTAL_POOL_30 = 252;
     const CAP_RATIO = 1.5;
     const MAX_MULTIPLIER = 2.5;
+    
+    // Константы здоровья
+    const BASE_HEALTH = 626;
+    const HEALTH_PER_LEVEL = 2.8;
+    const HEALTH_PER_STR = 22;
 
     // База данных предметов
     const ITEMS = {
-      hurricane_pike: { str: 15, agi: 20, int: 15, name: "Hurricane Pike" },
+      hurricane_pike: { str: 15, agi: 20, int: 15, health: 200, name: "Hurricane Pike" },
       dragon_lance: { str: 10, agi: 15, name: "Dragon Lance" },
-      sange_yasha: { str: 16, agi: 16, name: "Sange and Yasha" },
+      sange_yashi: { str: 16, agi: 16, name: "Sange and Yasha" },
       butterfly: { agi: 35, name: "ButterFly" },
       black_king_bar: { str: 10, name: "Black King Bar" },
       yasha: { agi: 16, name: "Yasha" },
       manta_style: { str: 10, agi: 26, int: 10, name: "Manta Style" },
-      eye_of_skadi: { str: 22, agi: 22, int: 22, name: "Eye of Skadi" },
+      eye_of_skadi: { str: 22, agi: 22, int: 22, health: 250, name: "Eye of Skadi" },
       satanic: { str: 25, name: "Satanic" },
       linkens_sphere: { str: 16, agi: 16, int: 16, name: "Linken's Sphere" },
-      heart: { str: 40, name: "Heart of Tarrasque" }
+      heart: { str: 40, health: 250, name: "Heart of Tarrasque" }
     };
 
     // Элементы DOM
@@ -245,15 +329,49 @@
       advice: document.getElementById('advice'),
       optimizeBtn: document.getElementById('optimizeBtn'),
       itemSelect: document.getElementById('itemSelect'),
-      itemsContainer: document.getElementById('itemsContainer')
+      itemsContainer: document.getElementById('itemsContainer'),
+      healthVal: document.getElementById('healthVal'),
+      baseHealth: document.getElementById('baseHealth'),
+      levelHealth: document.getElementById('levelHealth'),
+      strHealth: document.getElementById('strHealth'),
+      itemsHealth: document.getElementById('itemsHealth'),
+      healthBar: document.getElementById('healthBar'),
+      currentHealthDisplay: document.getElementById('currentHealthDisplay'),
+      maxHealthDisplay: document.getElementById('maxHealthDisplay')
     };
 
     // Состояние приложения
     let state = {
       selectedItems: [],
-      itemsBonus: { str: 0, agi: 0 },
-      currentPool: 252
+      itemsBonus: { str: 0, agi: 0, health: 0 },
+      currentPool: 252,
+      maxPossibleHealth: 0
     };
+
+    // Расчет здоровья
+    function calculateHealth(level, finalStr, itemsHealth) {
+      const base = BASE_HEALTH;
+      const fromLevels = (level - 1) * HEALTH_PER_LEVEL;
+      const fromStr = finalStr * HEALTH_PER_STR;
+      const fromItems = itemsHealth;
+      
+      const total = Math.round(base + fromLevels + fromStr + fromItems);
+      
+      return {
+        base,
+        fromLevels,
+        fromStr,
+        fromItems,
+        total
+      };
+    }
+
+    // Расчет максимально возможного здоровья
+    function calculateMaxPossibleHealth(level, itemsHealth) {
+      const stats = calculateStats(level, parseInt(elements.shardSlider.value));
+      const maxStr = stats.shardStr + state.itemsBonus.str + state.currentPool;
+      return calculateHealth(level, maxStr, itemsHealth).total;
+    }
 
     // Расчет атрибутов
     function calculateStats(level, shards) {
@@ -271,17 +389,42 @@
 
     // Обновление бонусов от предметов
     function updateItemsBonus() {
-      state.itemsBonus = { str: 0, agi: 0 };
+      state.itemsBonus = { str: 0, agi: 0, health: 0 };
       
       state.selectedItems.forEach(itemId => {
         const item = ITEMS[itemId];
         if (item.str) state.itemsBonus.str += item.str;
         if (item.agi) state.itemsBonus.agi += item.agi;
+        if (item.health) state.itemsBonus.health += item.health;
       });
       
       elements.itemsStr.textContent = state.itemsBonus.str;
       elements.itemsAgi.textContent = state.itemsBonus.agi;
       updateSlidersRange();
+      updateHealth();
+    }
+
+    // Обновление здоровья
+    function updateHealth() {
+      const level = parseInt(elements.levelSlider.value);
+      const finalStr = parseInt(elements.strSlider.value);
+      
+      // Рассчитываем текущее и максимальное здоровье
+      const health = calculateHealth(level, finalStr, state.itemsBonus.health);
+      state.maxPossibleHealth = calculateMaxPossibleHealth(level, state.itemsBonus.health);
+      
+      // Обновляем отображение
+      elements.healthVal.textContent = health.total;
+      elements.currentHealthDisplay.textContent = health.total;
+      elements.maxHealthDisplay.textContent = state.maxPossibleHealth;
+      elements.baseHealth.textContent = health.base;
+      elements.levelHealth.textContent = health.fromLevels.toFixed(1);
+      elements.strHealth.textContent = health.fromStr;
+      elements.itemsHealth.textContent = health.fromItems;
+      
+      // Обновляем шкалу здоровья
+      const healthPercentage = Math.min((health.total / state.maxPossibleHealth) * 100, 100);
+      elements.healthBar.style.width = `${healthPercentage}%`;
     }
 
     // Обновление диапазонов слайдеров
@@ -440,6 +583,7 @@
       elements.strVal.textContent = parseInt(elements.strSlider.value);
       
       updateMorphValues();
+      updateHealth();
 
       const flowEnabled = elements.flowToggle.checked;
       const mr = parseFloat(elements.mrSlider.value);
@@ -458,7 +602,6 @@
 
       // Вывод результатов
       elements.output.innerHTML = `
-        <h3>Результаты</h3>
         <p><span class="highlight">Итоговые атрибуты:</span> Str ${finalStr}, Agi ${finalAgi}</p>
         <p><span class="highlight">Порог Agi для 2.5× множителя:</span> ${baseRequired.toFixed(1)}</p>
         <p>Текущее соотношение Agi/Str: ${ratio.toFixed(2)}</p>
@@ -471,9 +614,14 @@
         : `<p class="highlight">Макс. множитель достигнут</p>`;
 
       elements.bars.innerHTML = realDmg.map((dmg, i) => `
-        <p>Уровень ${i+1} — Базовый урон: ${dmg.base}, Множитель: ${dmg.mult.toFixed(2)}, Итог: ${dmg.reduced.toFixed(1)}
-        ${ratio >= CAP_RATIO ? '<span class="highlight">(макс)</span>' : ''}</p>
-        <div class="bar"><div class="fill ${dmg.maxed ? 'maxed' : ''}" style="width:${Math.min(dmg.reduced / 1000 * 100, 100)}%"></div></div>
+        <div class="damage-level">
+          <div class="damage-level-title">Уровень ${i+1}</div>
+          <div>Базовый урон: ${dmg.base}, Множитель: ${dmg.mult.toFixed(2)}</div>
+          <div class="damage-bar-container">
+            <span class="damage-value">Итог: ${dmg.reduced.toFixed(1)}</span>
+            <div class="bar"><div class="fill ${dmg.maxed ? 'maxed' : ''}" style="width:${Math.min(dmg.reduced / 1000 * 100, 100)}%"></div></div>
+          </div>
+        </div>
       `).join('');
     }
 
