@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <!-- Мета-теги для мобильной оптимизации -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f0f0f">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.png">
+  <meta charset="UTF-8">
+  <title>Калькулятор Adaptive Strike (Flow)</title>
+  <style>
+    body {
+      background: #0f0f0f;
+      color: #eee;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    input[type=range] {
+      width: 100%;
+      margin: 10px 0;
+    }
+    .bar {
+      height: 20px;
+      background: #444;
+      border-radius: 10px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+    .fill {
+      height: 100%;
+      background: linear-gradient(to right, #00f0ff, #0044ff);
+      transition: width 0.3s;
+    }
+    .maxed {
+      background: linear-gradient(to right, #00ff88, #00cc44);
+    }
+    .highlight {
+      color: #00ff88;
+      font-weight: bold;
+    }
+    .section {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #1a1a1a;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+    button {
+      background: linear-gradient(to right, #00aaff, #0066ff);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 0;
+      font-size: 16px;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: linear-gradient(to right, #0088ff, #0044ff);
+      transform: translateY(-2px);
+    }
+    .fixed-value {
+      color: #aaa;
+      font-size: 0.9em;
+    }
+    h1 {
+      color: #00aaff;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h3 {
+      margin-top: 0;
+      color: #00aaff;
+    }
+    #output {
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    #bars {
+      margin-top: 20px;
+    }
+    #advice {
+      padding: 10px;
+      background: #1a1a1a;
+      border-radius: 5px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Калькулятор Adaptive Strike (Flow)</h1>
+  
+  <div class="section">
+    <h3>Базовые параметры</h3>
+    <label>Уровень героя: <span id="levelVal">30</span></label>
+    <input type="range" min="1" max="30" value="30" id="levelSlider">
+    
+    <label>Количество плюсиков: <span id="shardVal">7</span></label>
+    <input type="range" min="0" max="7" value="7" id="shardSlider">
+    
+    <label>
+      <input type="checkbox" id="flowToggle" checked>
+      Flow активен
+    </label>
+  </div>
+
+  <div class="section">
+    <h3>Атрибуты</h3>
+    <p>Пул перекачки: <span id="totalPool" class="highlight">252</span> очков</p>
+    
+    <label>Agility: 
+      <span class="fixed-value">(от плюсиков: <span id="baseAgi">14</span>)</span>
+      <span id="agiVal">252</span>
+    </label>
+    <input type="range" min="0" max="252" value="252" id="agiSlider">
+    
+    <label>Strength: 
+      <span class="fixed-value">(от плюсиков: <span id="baseStr">35</span>)</span>
+      <span id="strVal">0</span>
+    </label>
+    <input type="range" min="0" max="252" value="0" id="strSlider">
+    
+    <button id="optimizeBtn">Оптимизировать под макс. множитель</button>
+  </div>
+
+  <div class="section">
+    <h3>Сопротивление магии</h3>
+    <label>Сопротивление магии: <span id="mrVal">25</span>%</label>
+    <input type="range" min="0" max="60" value="25" id="mrSlider">
+  </div>
+
+  <div id="output"></div>
+  <div id="bars"></div>
+  <div id="advice"></div>
+
+  <script>
+    // Константы
+    const BASE_STR = 23;
+    const BASE_AGI = 24;
+    const SHARD_STR_PER = 5; // +5 силы за плюсик
+    const SHARD_AGI_PER = 2; // +2 ловкости за плюсик
+    const TOTAL_POOL_30 = 252; // Всего очков перекачки на 30 уровне
+    const CAP_RATIO = 1.5; // Пороговое соотношение Agi/Str
+    const MAX_MULTIPLIER = 2.5; // Максимальный множитель урона
+
+    // Элементы DOM
+    const levelSlider = document.getElementById('levelSlider');
+    const shardSlider = document.getElementById('shardSlider');
+    const agiSlider = document.getElementById('agiSlider');
+    const strSlider = document.getElementById('strSlider');
+    const levelVal = document.getElementById('levelVal');
+    const shardVal = document.getElementById('shardVal');
+    const totalPoolText = document.getElementById('totalPool');
+    const agiText = document.getElementById('agiVal');
+    const strText = document.getElementById('strVal');
+    const baseAgiText = document.getElementById('baseAgi');
+    const baseStrText = document.getElementById('baseStr');
+    const flowToggle = document.getElementById('flowToggle');
+    const mrSlider = document.getElementById('mrSlider');
+    const mrVal = document.getElementById('mrVal');
+    const output = document.getElementById('output');
+    const bars = document.getElementById('bars');
+    const advice = document.getElementById('advice');
+    const optimizeBtn = document.getElementById('optimizeBtn');
+
+    // Расчет атрибутов
+    function calculateStats(level, shards) {
+      // Неперекачиваемые бонусы от плюсиков
+      const shardStr = shards * SHARD_STR_PER;
+      const shardAgi = shards * SHARD_AGI_PER;
+      
+      // Пул перекачки (линейно растет с уровнем)
+      const totalPool = Math.round(TOTAL_POOL_30 * (level - 1) / 29);
+      
+      return {
+        shardStr, // Неперекачиваемая сила
+        shardAgi, // Неперекачиваемая ловкость
+        totalPool // Доступно очков для перекачки
+      };
+    }
+
+    // Оптимизация под максимальный множитель
+    function optimizeForMaxMultiplier() {
+      const level = parseInt(levelSlider.value);
+      const shards = parseInt(shardSlider.value);
+      const stats = calculateStats(level, shards);
+      
+      // Рассчитываем оптимальное распределение для Agi/Str = 1.5
+      const optimalAgi = Math.round(
+        (CAP_RATIO * (stats.shardStr + stats.totalPool) - stats.shardAgi) / (1 + CAP_RATIO)
+      );
+      
+      // Ограничиваем значения в допустимых пределах
+      agiSlider.value = Math.max(0, Math.min(optimalAgi, stats.totalPool));
+      strSlider.value = stats.totalPool - parseInt(agiSlider.value);
+      
+      update();
+    }
+
+    // Расчет урона
+    function calculateDamage(finalAgi, finalStr, mr, flowEnabled) {
+      const ratio = finalAgi / finalStr;
+      const spellAmp = flowEnabled ? Math.floor(finalAgi / 4) : 0;
+      
+      const baseLevel = [25, 50, 75, 100];
+      const maxMult = [1, 1.5, 2, 2.5];
+      
+      return baseLevel.map((base, i) => {
+        const mult = Math.min(ratio / CAP_RATIO, 1) * maxMult[i];
+        const raw = base + finalAgi * mult;
+        const amp = raw * (1 + spellAmp / 100);
+        const reduced = amp * (1 - mr / 100);
+        return {
+          base,
+          mult,
+          raw,
+          amp,
+          reduced,
+          maxed: ratio >= CAP_RATIO
+        };
+      });
+    }
+
+    // Основная функция обновления
+    function update() {
+      const level = parseInt(levelSlider.value);
+      const shards = parseInt(shardSlider.value);
+      const stats = calculateStats(level, shards);
+      
+      // Устанавливаем максимальные значения слайдеров
+      agiSlider.max = stats.totalPool;
+      strSlider.max = stats.totalPool;
+      
+      // Итоговые атрибуты
+      const finalStr = stats.shardStr + parseInt(strSlider.value);
+      const finalAgi = stats.shardAgi + parseInt(agiSlider.value);
+      
+      // Обновляем отображение
+      levelVal.textContent = level;
+      shardVal.textContent = shards;
+      baseStrText.textContent = stats.shardStr;
+      baseAgiText.textContent = stats.shardAgi;
+      totalPoolText.textContent = stats.totalPool;
+      agiText.textContent = parseInt(agiSlider.value);
+      strText.textContent = parseInt(strSlider.value);
+
+      const flowEnabled = flowToggle.checked;
+      const mr = parseFloat(mrSlider.value);
+      mrVal.textContent = mr;
+
+      const ratio = finalAgi / finalStr;
+      const baseRequired = finalStr * CAP_RATIO;
+      const extraAgiNeeded = Math.max(0, Math.ceil(baseRequired - finalAgi));
+      const effectiveMultiplier = Math.min(ratio / CAP_RATIO, 1) * MAX_MULTIPLIER;
+
+      const realDmg = calculateDamage(finalAgi, finalStr, mr, flowEnabled);
+      const spellAmp = flowEnabled ? Math.floor(finalAgi / 4) : 0;
+
+      // Вывод результатов
+      output.innerHTML = `
+        <h3>Результаты</h3>
+        <p><span class="highlight">Итоговые атрибуты:</span> Str ${finalStr.toFixed(1)}, Agi ${finalAgi.toFixed(1)}</p>
+        <p><span class="highlight">Порог Agi для 2.5× множителя:</span> ${baseRequired.toFixed(1)}</p>
+        <p>Текущее соотношение Agi/Str: ${ratio.toFixed(2)}</p>
+        <p>Множитель урона: ${effectiveMultiplier.toFixed(3)} (макс: ${MAX_MULTIPLIER})</p>
+        <p>Итоговый урон (на 4 уровне): ${realDmg[3].reduced.toFixed(2)} (учтён Flow +${spellAmp}%, MR ${mr}%)</p>
+      `;
+
+      advice.innerHTML = extraAgiNeeded > 0
+        ? `<p>До максимального множителя: <span class="highlight">ещё ${extraAgiNeeded} Agi</span></p>`
+        : `<p class="highlight">Макс. множитель достигнут</p>`;
+
+      bars.innerHTML = realDmg.map((dmg, i) => `
+        <p>Уровень ${i+1} — Базовый урон: ${dmg.base}, Множитель: ${dmg.mult.toFixed(2)}, Итог: ${dmg.reduced.toFixed(1)}
+        ${ratio >= CAP_RATIO ? '<span class="highlight">(макс)</span>' : ''}</p>
+        <div class="bar"><div class="fill ${dmg.maxed ? 'maxed' : ''}" style="width:${Math.min(dmg.reduced / 1000 * 100, 100)}%"></div></div>
+      `).join('');
+    }
+
+    // Обработчики событий
+    function handleSliderChange() {
+      const totalPool = calculateStats(
+        parseInt(levelSlider.value),
+        parseInt(shardSlider.value)
+      ).totalPool;
+      
+      if (this === agiSlider) {
+        strSlider.value = totalPool - parseInt(agiSlider.value);
+      } else {
+        agiSlider.value = totalPool - parseInt(strSlider.value);
+      }
+      update();
+    }
+
+    function initSliders() {
+      agiSlider.addEventListener('input', handleSliderChange);
+      strSlider.addEventListener('input', handleSliderChange);
+
+      levelSlider.addEventListener('input', () => {
+        const level = parseInt(levelSlider.value);
+        const stats = calculateStats(level, parseInt(shardSlider.value));
+        
+        // Сбрасываем слайдеры при изменении уровня
+        agiSlider.value = 0;
+        strSlider.value = stats.totalPool;
+        
+        update();
+      });
+
+      shardSlider.addEventListener('input', update);
+      flowToggle.addEventListener('change', update);
+      mrSlider.addEventListener('input', update);
+      optimizeBtn.addEventListener('click', optimizeForMaxMultiplier);
+    }
+
+    // Запуск приложения
+    initSliders();
+    update();
+  </script>
+</body>
+</html>
