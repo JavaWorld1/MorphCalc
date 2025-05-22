@@ -2,20 +2,18 @@
 <html lang="ru">
 <head>
 
-    <!-- Для иконки вкладки браузера -->
+  <!-- Для иконки вкладки браузера -->
   <link rel="icon" href="android-chrome-192x192.png">
 
-    <!-- Для Apple Devices -->
-  <link rel="apple-touch-icon" href="android-chrome-192x192.png">
-  
+  <!-- Для Apple Devices -->
+<link rel="apple-touch-icon" href="android-chrome-192x192.png">
     <!-- Мета-теги для мобильной оптимизации -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f0f0f">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.png">
-  
   <meta charset="UTF-8">
-  <title>Калькулятор Adaptive Strike (Flow)</title>
+  <title>Калькулятор Adaptive Strike (Flow) с предметами</title>
   <style>
     body {
       background: #0f0f0f;
@@ -25,9 +23,13 @@
       max-width: 800px;
       margin: 0 auto;
     }
-    input[type=range] {
+    input[type=range], select {
       width: 100%;
       margin: 10px 0;
+      padding: 8px;
+      background: #333;
+      color: white;
+      border: 1px solid #555;
     }
     .bar {
       height: 20px;
@@ -98,10 +100,28 @@
       border-radius: 5px;
       margin-top: 15px;
     }
+    .items-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .item {
+      background: #333;
+      padding: 8px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+    }
+    .remove-item {
+      margin-left: 8px;
+      color: #ff5555;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>Калькулятор Adaptive Strike (Flow)</h1>
+  <h1>Калькулятор Adaptive Strike (Flow) с предметами</h1>
   
   <div class="section">
     <h3>Базовые параметры</h3>
@@ -122,18 +142,37 @@
     <p>Пул перекачки: <span id="totalPool" class="highlight">252</span> очков</p>
     
     <label>Agility: 
-      <span class="fixed-value">(от плюсиков: <span id="baseAgi">14</span>)</span>
+      <span class="fixed-value">(от плюсиков: <span id="baseAgi">14</span>, от предметов: <span id="itemsAgi">0</span>)</span>
       <span id="agiVal">252</span>
     </label>
     <input type="range" min="0" max="252" value="252" id="agiSlider">
     
     <label>Strength: 
-      <span class="fixed-value">(от плюсиков: <span id="baseStr">35</span>)</span>
+      <span class="fixed-value">(от плюсиков: <span id="baseStr">35</span>, от предметов: <span id="itemsStr">0</span>)</span>
       <span id="strVal">0</span>
     </label>
     <input type="range" min="0" max="252" value="0" id="strSlider">
     
     <button id="optimizeBtn">Оптимизировать под макс. множитель</button>
+  </div>
+
+  <div class="section">
+    <h3>Предметы</h3>
+    <select id="itemSelect">
+      <option value="">Выберите предмет...</option>
+      <option value="hurricane_pike">Hurricane Pike (+15str, +20agi, +15int)</option>
+      <option value="dragon_lance">Dragon Lance (+10str, +15agi)</option>
+      <option value="sange_yasha">Sange and Yasha (+16str, +16agi)</option>
+      <option value="butterfly">ButterFly (+35agi)</option>
+      <option value="black_king_bar">Black King Bar (+10str)</option>
+      <option value="yasha">Yasha (+16agi)</option>
+      <option value="manta_style">Manta Style (+10str, +26agi, +10int)</option>
+      <option value="eye_of_skadi">Eye of Skadi (+22 ко всем)</option>
+      <option value="satanic">Satanic (+25str)</option>
+      <option value="linkens_sphere">Linken's Sphere (+16 ко всем)</option>
+      <option value="heart">Heart of Tarrasque (+40str)</option>
+    </select>
+    <div class="items-container" id="itemsContainer"></div>
   </div>
 
   <div class="section">
@@ -150,62 +189,144 @@
     // Константы
     const BASE_STR = 23;
     const BASE_AGI = 24;
-    const SHARD_STR_PER = 5; // +5 силы за плюсик
-    const SHARD_AGI_PER = 2; // +2 ловкости за плюсик
-    const TOTAL_POOL_30 = 252; // Всего очков перекачки на 30 уровне
-    const CAP_RATIO = 1.5; // Пороговое соотношение Agi/Str
-    const MAX_MULTIPLIER = 2.5; // Максимальный множитель урона
+    const SHARD_STR_PER = 5;
+    const SHARD_AGI_PER = 2;
+    const TOTAL_POOL_30 = 252;
+    const CAP_RATIO = 1.5;
+    const MAX_MULTIPLIER = 2.5;
+
+    // База данных предметов
+    const ITEMS = {
+      hurricane_pike: { str: 15, agi: 20, int: 15, name: "Hurricane Pike" },
+      dragon_lance: { str: 10, agi: 15, name: "Dragon Lance" },
+      sange_yasha: { str: 16, agi: 16, name: "Sange and Yasha" },
+      butterfly: { agi: 35, name: "ButterFly" },
+      black_king_bar: { str: 10, name: "Black King Bar" },
+      yasha: { agi: 16, name: "Yasha" },
+      manta_style: { str: 10, agi: 26, int: 10, name: "Manta Style" },
+      eye_of_skadi: { str: 22, agi: 22, int: 22, name: "Eye of Skadi" },
+      satanic: { str: 25, name: "Satanic" },
+      linkens_sphere: { str: 16, agi: 16, int: 16, name: "Linken's Sphere" },
+      heart: { str: 40, name: "Heart of Tarrasque" }
+    };
 
     // Элементы DOM
-    const levelSlider = document.getElementById('levelSlider');
-    const shardSlider = document.getElementById('shardSlider');
-    const agiSlider = document.getElementById('agiSlider');
-    const strSlider = document.getElementById('strSlider');
-    const levelVal = document.getElementById('levelVal');
-    const shardVal = document.getElementById('shardVal');
-    const totalPoolText = document.getElementById('totalPool');
-    const agiText = document.getElementById('agiVal');
-    const strText = document.getElementById('strVal');
-    const baseAgiText = document.getElementById('baseAgi');
-    const baseStrText = document.getElementById('baseStr');
-    const flowToggle = document.getElementById('flowToggle');
-    const mrSlider = document.getElementById('mrSlider');
-    const mrVal = document.getElementById('mrVal');
-    const output = document.getElementById('output');
-    const bars = document.getElementById('bars');
-    const advice = document.getElementById('advice');
-    const optimizeBtn = document.getElementById('optimizeBtn');
+    const elements = {
+      levelSlider: document.getElementById('levelSlider'),
+      shardSlider: document.getElementById('shardSlider'),
+      agiSlider: document.getElementById('agiSlider'),
+      strSlider: document.getElementById('strSlider'),
+      levelVal: document.getElementById('levelVal'),
+      shardVal: document.getElementById('shardVal'),
+      totalPool: document.getElementById('totalPool'),
+      agiVal: document.getElementById('agiVal'),
+      strVal: document.getElementById('strVal'),
+      baseAgi: document.getElementById('baseAgi'),
+      baseStr: document.getElementById('baseStr'),
+      itemsAgi: document.getElementById('itemsAgi'),
+      itemsStr: document.getElementById('itemsStr'),
+      flowToggle: document.getElementById('flowToggle'),
+      mrSlider: document.getElementById('mrSlider'),
+      mrVal: document.getElementById('mrVal'),
+      output: document.getElementById('output'),
+      bars: document.getElementById('bars'),
+      advice: document.getElementById('advice'),
+      optimizeBtn: document.getElementById('optimizeBtn'),
+      itemSelect: document.getElementById('itemSelect'),
+      itemsContainer: document.getElementById('itemsContainer')
+    };
+
+    // Состояние приложения
+    let state = {
+      selectedItems: [],
+      itemsBonus: { str: 0, agi: 0 }
+    };
 
     // Расчет атрибутов
     function calculateStats(level, shards) {
-      // Неперекачиваемые бонусы от плюсиков
       const shardStr = shards * SHARD_STR_PER;
       const shardAgi = shards * SHARD_AGI_PER;
-      
-      // Пул перекачки (линейно растет с уровнем)
       const totalPool = Math.round(TOTAL_POOL_30 * (level - 1) / 29);
       
       return {
-        shardStr, // Неперекачиваемая сила
-        shardAgi, // Неперекачиваемая ловкость
-        totalPool // Доступно очков для перекачки
+        shardStr,
+        shardAgi,
+        totalPool
       };
+    }
+
+    // Обновление бонусов от предметов
+    function updateItemsBonus() {
+      state.itemsBonus = { str: 0, agi: 0 };
+      
+      state.selectedItems.forEach(itemId => {
+        const item = ITEMS[itemId];
+        if (item.str) state.itemsBonus.str += item.str;
+        if (item.agi) state.itemsBonus.agi += item.agi;
+      });
+      
+      elements.itemsStr.textContent = state.itemsBonus.str;
+      elements.itemsAgi.textContent = state.itemsBonus.agi;
+    }
+
+    // Добавление предмета
+    function addItem(itemId) {
+      if (!itemId || state.selectedItems.includes(itemId)) return;
+      
+      state.selectedItems.push(itemId);
+      updateItemsBonus();
+      renderItems();
+      update();
+    }
+
+    // Удаление предмета
+    function removeItem(itemId) {
+      state.selectedItems = state.selectedItems.filter(id => id !== itemId);
+      updateItemsBonus();
+      renderItems();
+      update();
+    }
+
+    // Отрисовка выбранных предметов
+    function renderItems() {
+      elements.itemsContainer.innerHTML = '';
+      
+      state.selectedItems.forEach(itemId => {
+        const item = ITEMS[itemId];
+        const itemEl = document.createElement('div');
+        itemEl.className = 'item';
+        itemEl.innerHTML = `
+          ${item.name}
+          <span class="remove-item" data-id="${itemId}">×</span>
+        `;
+        elements.itemsContainer.appendChild(itemEl);
+      });
+      
+      // Назначение обработчиков удаления
+      document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          removeItem(e.target.getAttribute('data-id'));
+        });
+      });
     }
 
     // Оптимизация под максимальный множитель
     function optimizeForMaxMultiplier() {
-      const level = parseInt(levelSlider.value);
-      const shards = parseInt(shardSlider.value);
+      const level = parseInt(elements.levelSlider.value);
+      const shards = parseInt(elements.shardSlider.value);
       const stats = calculateStats(level, shards);
       
-      // Рассчитываем оптимальное распределение для Agi/Str = 1.5
+      // Итоговые неперекачиваемые атрибуты
+      const fixedStr = stats.shardStr + state.itemsBonus.str;
+      const fixedAgi = stats.shardAgi + state.itemsBonus.agi;
+      
+      // Оптимальное распределение
       const optimalAgi = Math.round(
-        (CAP_RATIO * (stats.shardStr + stats.totalPool) - stats.shardAgi) / (1 + CAP_RATIO)
+        (CAP_RATIO * (fixedStr + stats.totalPool) - fixedAgi) / (1 + CAP_RATIO)
       );
       
-      // Ограничиваем значения в допустимых пределах
-      agiSlider.value = Math.max(0, Math.min(optimalAgi, stats.totalPool));
-      strSlider.value = stats.totalPool - parseInt(agiSlider.value);
+      elements.agiSlider.value = Math.max(0, Math.min(optimalAgi, stats.totalPool));
+      elements.strSlider.value = stats.totalPool - parseInt(elements.agiSlider.value);
       
       update();
     }
@@ -236,30 +357,30 @@
 
     // Основная функция обновления
     function update() {
-      const level = parseInt(levelSlider.value);
-      const shards = parseInt(shardSlider.value);
+      const level = parseInt(elements.levelSlider.value);
+      const shards = parseInt(elements.shardSlider.value);
       const stats = calculateStats(level, shards);
       
       // Устанавливаем максимальные значения слайдеров
-      agiSlider.max = stats.totalPool;
-      strSlider.max = stats.totalPool;
+      elements.agiSlider.max = stats.totalPool;
+      elements.strSlider.max = stats.totalPool;
       
-      // Итоговые атрибуты
-      const finalStr = stats.shardStr + parseInt(strSlider.value);
-      const finalAgi = stats.shardAgi + parseInt(agiSlider.value);
+      // Итоговые атрибуты (неперекачиваемые + предметы + перекаченные)
+      const finalStr = stats.shardStr + state.itemsBonus.str + parseInt(elements.strSlider.value);
+      const finalAgi = stats.shardAgi + state.itemsBonus.agi + parseInt(elements.agiSlider.value);
       
       // Обновляем отображение
-      levelVal.textContent = level;
-      shardVal.textContent = shards;
-      baseStrText.textContent = stats.shardStr;
-      baseAgiText.textContent = stats.shardAgi;
-      totalPoolText.textContent = stats.totalPool;
-      agiText.textContent = parseInt(agiSlider.value);
-      strText.textContent = parseInt(strSlider.value);
+      elements.levelVal.textContent = level;
+      elements.shardVal.textContent = shards;
+      elements.baseStr.textContent = stats.shardStr;
+      elements.baseAgi.textContent = stats.shardAgi;
+      elements.totalPool.textContent = stats.totalPool;
+      elements.agiVal.textContent = parseInt(elements.agiSlider.value);
+      elements.strVal.textContent = parseInt(elements.strSlider.value);
 
-      const flowEnabled = flowToggle.checked;
-      const mr = parseFloat(mrSlider.value);
-      mrVal.textContent = mr;
+      const flowEnabled = elements.flowToggle.checked;
+      const mr = parseFloat(elements.mrSlider.value);
+      elements.mrVal.textContent = mr;
 
       const ratio = finalAgi / finalStr;
       const baseRequired = finalStr * CAP_RATIO;
@@ -270,7 +391,7 @@
       const spellAmp = flowEnabled ? Math.floor(finalAgi / 4) : 0;
 
       // Вывод результатов
-      output.innerHTML = `
+      elements.output.innerHTML = `
         <h3>Результаты</h3>
         <p><span class="highlight">Итоговые атрибуты:</span> Str ${finalStr.toFixed(1)}, Agi ${finalAgi.toFixed(1)}</p>
         <p><span class="highlight">Порог Agi для 2.5× множителя:</span> ${baseRequired.toFixed(1)}</p>
@@ -279,56 +400,65 @@
         <p>Итоговый урон (на 4 уровне): ${realDmg[3].reduced.toFixed(2)} (учтён Flow +${spellAmp}%, MR ${mr}%)</p>
       `;
 
-      advice.innerHTML = extraAgiNeeded > 0
+      elements.advice.innerHTML = extraAgiNeeded > 0
         ? `<p>До максимального множителя: <span class="highlight">ещё ${extraAgiNeeded} Agi</span></p>`
         : `<p class="highlight">Макс. множитель достигнут</p>`;
 
-      bars.innerHTML = realDmg.map((dmg, i) => `
+      elements.bars.innerHTML = realDmg.map((dmg, i) => `
         <p>Уровень ${i+1} — Базовый урон: ${dmg.base}, Множитель: ${dmg.mult.toFixed(2)}, Итог: ${dmg.reduced.toFixed(1)}
         ${ratio >= CAP_RATIO ? '<span class="highlight">(макс)</span>' : ''}</p>
         <div class="bar"><div class="fill ${dmg.maxed ? 'maxed' : ''}" style="width:${Math.min(dmg.reduced / 1000 * 100, 100)}%"></div></div>
       `).join('');
     }
 
-    // Обработчики событий
-    function handleSliderChange() {
-      const totalPool = calculateStats(
-        parseInt(levelSlider.value),
-        parseInt(shardSlider.value)
-      ).totalPool;
-      
-      if (this === agiSlider) {
-        strSlider.value = totalPool - parseInt(agiSlider.value);
-      } else {
-        agiSlider.value = totalPool - parseInt(strSlider.value);
-      }
-      update();
-    }
-
-    function initSliders() {
-      agiSlider.addEventListener('input', handleSliderChange);
-      strSlider.addEventListener('input', handleSliderChange);
-
-      levelSlider.addEventListener('input', () => {
-        const level = parseInt(levelSlider.value);
-        const stats = calculateStats(level, parseInt(shardSlider.value));
+    // Инициализация
+    function init() {
+      // Обработчики слайдеров
+      const handleSliderChange = function() {
+        const totalPool = calculateStats(
+          parseInt(elements.levelSlider.value),
+          parseInt(elements.shardSlider.value)
+        ).totalPool;
         
-        // Сбрасываем слайдеры при изменении уровня
-        agiSlider.value = 0;
-        strSlider.value = stats.totalPool;
+        if (this === elements.agiSlider) {
+          elements.strSlider.value = totalPool - parseInt(elements.agiSlider.value);
+        } else {
+          elements.agiSlider.value = totalPool - parseInt(elements.strSlider.value);
+        }
+        update();
+      };
+
+      elements.agiSlider.addEventListener('input', handleSliderChange);
+      elements.strSlider.addEventListener('input', handleSliderChange);
+
+      // Обработчики для уровня и плюсиков
+      elements.levelSlider.addEventListener('input', () => {
+        const level = parseInt(elements.levelSlider.value);
+        const stats = calculateStats(level, parseInt(elements.shardSlider.value));
         
+        elements.agiSlider.value = 0;
+        elements.strSlider.value = stats.totalPool;
         update();
       });
 
-      shardSlider.addEventListener('input', update);
-      flowToggle.addEventListener('change', update);
-      mrSlider.addEventListener('input', update);
-      optimizeBtn.addEventListener('click', optimizeForMaxMultiplier);
+      elements.shardSlider.addEventListener('input', update);
+      elements.flowToggle.addEventListener('change', update);
+      elements.mrSlider.addEventListener('input', update);
+      elements.optimizeBtn.addEventListener('click', optimizeForMaxMultiplier);
+
+      // Обработчик выбора предмета
+      elements.itemSelect.addEventListener('change', (e) => {
+        addItem(e.target.value);
+        e.target.value = '';
+      });
+
+      // Первоначальное обновление
+      updateItemsBonus();
+      update();
     }
 
     // Запуск приложения
-    initSliders();
-    update();
+    init();
   </script>
 </body>
 </html>
