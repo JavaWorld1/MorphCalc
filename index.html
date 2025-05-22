@@ -1,19 +1,18 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-
   <!-- Для иконки вкладки браузера -->
   <link rel="icon" href="android-chrome-192x192.png">
 
   <!-- Для Apple Devices -->
-<link rel="apple-touch-icon" href="android-chrome-192x192.png">
+  <link rel="apple-touch-icon" href="android-chrome-192x192.png">
     <!-- Мета-теги для мобильной оптимизации -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f0f0f">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.png">
   <meta charset="UTF-8">
-  <title>Калькулятор Adaptive Strike (Flow) с предметами</title>
+  <title>Калькулятор Adaptive Strike (Flow)</title>
   <style>
     body {
       background: #0f0f0f;
@@ -118,10 +117,15 @@
       color: #ff5555;
       cursor: pointer;
     }
+    .attr-breakdown {
+      font-size: 0.9em;
+      color: #aaa;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
-  <h1>Калькулятор Adaptive Strike (Flow) с предметами</h1>
+  <h1>Калькулятор Adaptive Strike (Flow)</h1>
   
   <div class="section">
     <h3>Базовые параметры</h3>
@@ -141,17 +145,23 @@
     <h3>Атрибуты</h3>
     <p>Пул перекачки: <span id="totalPool" class="highlight">252</span> очков</p>
     
-    <label>Agility: 
-      <span class="fixed-value">(от плюсиков: <span id="baseAgi">14</span>, от предметов: <span id="itemsAgi">0</span>)</span>
-      <span id="agiVal">252</span>
-    </label>
-    <input type="range" min="0" max="252" value="252" id="agiSlider">
+    <label>Итоговая Agility: <span id="agiVal">266</span></label>
+    <input type="range" min="14" max="266" value="266" id="agiSlider">
+    <div class="attr-breakdown">
+      Состав: 
+      <span id="baseAgi">14</span> (плюсики) + 
+      <span id="itemsAgi">0</span> (предметы) + 
+      <span id="morphAgi">252</span> (перекачка)
+    </div>
     
-    <label>Strength: 
-      <span class="fixed-value">(от плюсиков: <span id="baseStr">35</span>, от предметов: <span id="itemsStr">0</span>)</span>
-      <span id="strVal">0</span>
-    </label>
-    <input type="range" min="0" max="252" value="0" id="strSlider">
+    <label>Итоговая Strength: <span id="strVal">35</span></label>
+    <input type="range" min="35" max="287" value="35" id="strSlider">
+    <div class="attr-breakdown">
+      Состав: 
+      <span id="baseStr">35</span> (плюсики) + 
+      <span id="itemsStr">0</span> (предметы) + 
+      <span id="morphStr">0</span> (перекачка)
+    </div>
     
     <button id="optimizeBtn">Оптимизировать под макс. множитель</button>
   </div>
@@ -225,6 +235,8 @@
       baseStr: document.getElementById('baseStr'),
       itemsAgi: document.getElementById('itemsAgi'),
       itemsStr: document.getElementById('itemsStr'),
+      morphAgi: document.getElementById('morphAgi'),
+      morphStr: document.getElementById('morphStr'),
       flowToggle: document.getElementById('flowToggle'),
       mrSlider: document.getElementById('mrSlider'),
       mrVal: document.getElementById('mrVal'),
@@ -239,7 +251,8 @@
     // Состояние приложения
     let state = {
       selectedItems: [],
-      itemsBonus: { str: 0, agi: 0 }
+      itemsBonus: { str: 0, agi: 0 },
+      currentPool: 252
     };
 
     // Расчет атрибутов
@@ -247,6 +260,7 @@
       const shardStr = shards * SHARD_STR_PER;
       const shardAgi = shards * SHARD_AGI_PER;
       const totalPool = Math.round(TOTAL_POOL_30 * (level - 1) / 29);
+      state.currentPool = totalPool;
       
       return {
         shardStr,
@@ -267,6 +281,65 @@
       
       elements.itemsStr.textContent = state.itemsBonus.str;
       elements.itemsAgi.textContent = state.itemsBonus.agi;
+      updateSlidersRange();
+    }
+
+    // Обновление диапазонов слайдеров
+    function updateSlidersRange() {
+      const stats = calculateStats(
+        parseInt(elements.levelSlider.value),
+        parseInt(elements.shardSlider.value)
+      );
+      
+      // Минимальные значения (только неперекачиваемые)
+      const minAgi = stats.shardAgi + state.itemsBonus.agi;
+      const minStr = stats.shardStr + state.itemsBonus.str;
+      
+      // Максимальные значения (неперекачиваемые + весь пул)
+      const maxAgi = minAgi + state.currentPool;
+      const maxStr = minStr + state.currentPool;
+      
+      // Устанавливаем новые диапазоны
+      elements.agiSlider.min = minAgi;
+      elements.agiSlider.max = maxAgi;
+      elements.strSlider.min = minStr;
+      elements.strSlider.max = maxStr;
+      
+      // Корректируем текущие значения, если они вышли за пределы
+      if (parseInt(elements.agiSlider.value) < minAgi) elements.agiSlider.value = minAgi;
+      if (parseInt(elements.agiSlider.value) > maxAgi) elements.agiSlider.value = maxAgi;
+      if (parseInt(elements.strSlider.value) < minStr) elements.strSlider.value = minStr;
+      if (parseInt(elements.strSlider.value) > maxStr) elements.strSlider.value = maxStr;
+      
+      updateMorphValues();
+    }
+
+    // Обновление значений перекачиваемых атрибутов
+    function updateMorphValues() {
+      const stats = calculateStats(
+        parseInt(elements.levelSlider.value),
+        parseInt(elements.shardSlider.value)
+      );
+      
+      const totalAgi = parseInt(elements.agiSlider.value);
+      const totalStr = parseInt(elements.strSlider.value);
+      
+      const morphAgi = totalAgi - stats.shardAgi - state.itemsBonus.agi;
+      const morphStr = totalStr - stats.shardStr - state.itemsBonus.str;
+      
+      elements.morphAgi.textContent = Math.max(0, morphAgi);
+      elements.morphStr.textContent = Math.max(0, morphStr);
+      
+      // Проверка на превышение пула
+      const usedPool = morphAgi + morphStr;
+      if (usedPool > state.currentPool) {
+        if (morphAgi > morphStr) {
+          elements.agiSlider.value = stats.shardAgi + state.itemsBonus.agi + (state.currentPool - morphStr);
+        } else {
+          elements.strSlider.value = stats.shardStr + state.itemsBonus.str + (state.currentPool - morphAgi);
+        }
+        updateMorphValues();
+      }
     }
 
     // Добавление предмета
@@ -301,13 +374,6 @@
         `;
         elements.itemsContainer.appendChild(itemEl);
       });
-      
-      // Назначение обработчиков удаления
-      document.querySelectorAll('.remove-item').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          removeItem(e.target.getAttribute('data-id'));
-        });
-      });
     }
 
     // Оптимизация под максимальный множитель
@@ -322,11 +388,14 @@
       
       // Оптимальное распределение
       const optimalAgi = Math.round(
-        (CAP_RATIO * (fixedStr + stats.totalPool) - fixedAgi) / (1 + CAP_RATIO)
+        (CAP_RATIO * (fixedStr + state.currentPool) - fixedAgi) / (1 + CAP_RATIO)
       );
       
-      elements.agiSlider.value = Math.max(0, Math.min(optimalAgi, stats.totalPool));
-      elements.strSlider.value = stats.totalPool - parseInt(elements.agiSlider.value);
+      const optimalAgiTotal = fixedAgi + Math.max(0, Math.min(optimalAgi, state.currentPool));
+      const optimalStrTotal = fixedStr + (state.currentPool - Math.max(0, Math.min(optimalAgi, state.currentPool)));
+      
+      elements.agiSlider.value = optimalAgiTotal;
+      elements.strSlider.value = optimalStrTotal;
       
       update();
     }
@@ -361,27 +430,24 @@
       const shards = parseInt(elements.shardSlider.value);
       const stats = calculateStats(level, shards);
       
-      // Устанавливаем максимальные значения слайдеров
-      elements.agiSlider.max = stats.totalPool;
-      elements.strSlider.max = stats.totalPool;
-      
-      // Итоговые атрибуты (неперекачиваемые + предметы + перекаченные)
-      const finalStr = stats.shardStr + state.itemsBonus.str + parseInt(elements.strSlider.value);
-      const finalAgi = stats.shardAgi + state.itemsBonus.agi + parseInt(elements.agiSlider.value);
-      
       // Обновляем отображение
       elements.levelVal.textContent = level;
       elements.shardVal.textContent = shards;
       elements.baseStr.textContent = stats.shardStr;
       elements.baseAgi.textContent = stats.shardAgi;
-      elements.totalPool.textContent = stats.totalPool;
+      elements.totalPool.textContent = state.currentPool;
       elements.agiVal.textContent = parseInt(elements.agiSlider.value);
       elements.strVal.textContent = parseInt(elements.strSlider.value);
+      
+      updateMorphValues();
 
       const flowEnabled = elements.flowToggle.checked;
       const mr = parseFloat(elements.mrSlider.value);
       elements.mrVal.textContent = mr;
 
+      const finalStr = parseInt(elements.strSlider.value);
+      const finalAgi = parseInt(elements.agiSlider.value);
+      
       const ratio = finalAgi / finalStr;
       const baseRequired = finalStr * CAP_RATIO;
       const extraAgiNeeded = Math.max(0, Math.ceil(baseRequired - finalAgi));
@@ -393,7 +459,7 @@
       // Вывод результатов
       elements.output.innerHTML = `
         <h3>Результаты</h3>
-        <p><span class="highlight">Итоговые атрибуты:</span> Str ${finalStr.toFixed(1)}, Agi ${finalAgi.toFixed(1)}</p>
+        <p><span class="highlight">Итоговые атрибуты:</span> Str ${finalStr}, Agi ${finalAgi}</p>
         <p><span class="highlight">Порог Agi для 2.5× множителя:</span> ${baseRequired.toFixed(1)}</p>
         <p>Текущее соотношение Agi/Str: ${ratio.toFixed(2)}</p>
         <p>Множитель урона: ${effectiveMultiplier.toFixed(3)} (макс: ${MAX_MULTIPLIER})</p>
@@ -414,30 +480,48 @@
     // Инициализация
     function init() {
       // Обработчики слайдеров
-      const handleSliderChange = function() {
-        const totalPool = calculateStats(
+      elements.agiSlider.addEventListener('input', () => {
+        const stats = calculateStats(
           parseInt(elements.levelSlider.value),
           parseInt(elements.shardSlider.value)
-        ).totalPool;
+        );
         
-        if (this === elements.agiSlider) {
-          elements.strSlider.value = totalPool - parseInt(elements.agiSlider.value);
-        } else {
-          elements.agiSlider.value = totalPool - parseInt(elements.strSlider.value);
-        }
+        const morphAgi = parseInt(elements.agiSlider.value) - stats.shardAgi - state.itemsBonus.agi;
+        const availableStrPool = state.currentPool - morphAgi;
+        
+        elements.strSlider.value = stats.shardStr + state.itemsBonus.str + availableStrPool;
         update();
-      };
+      });
 
-      elements.agiSlider.addEventListener('input', handleSliderChange);
-      elements.strSlider.addEventListener('input', handleSliderChange);
+      elements.strSlider.addEventListener('input', () => {
+        const stats = calculateStats(
+          parseInt(elements.levelSlider.value),
+          parseInt(elements.shardSlider.value)
+        );
+        
+        const morphStr = parseInt(elements.strSlider.value) - stats.shardStr - state.itemsBonus.str;
+        const availableAgiPool = state.currentPool - morphStr;
+        
+        elements.agiSlider.value = stats.shardAgi + state.itemsBonus.agi + availableAgiPool;
+        update();
+      });
 
       // Обработчики для уровня и плюсиков
       elements.levelSlider.addEventListener('input', () => {
         const level = parseInt(elements.levelSlider.value);
         const stats = calculateStats(level, parseInt(elements.shardSlider.value));
         
-        elements.agiSlider.value = 0;
-        elements.strSlider.value = stats.totalPool;
+        // Сохраняем текущее соотношение
+        const currentRatio = (parseInt(elements.agiSlider.value) - stats.shardAgi - state.itemsBonus.agi) / 
+                            (parseInt(elements.strSlider.value) - stats.shardStr - state.itemsBonus.str);
+        
+        // Перераспределяем с новым пулом
+        const newAgiMorph = Math.round((state.currentPool * currentRatio) / (1 + currentRatio));
+        const newStrMorph = state.currentPool - newAgiMorph;
+        
+        elements.agiSlider.value = stats.shardAgi + state.itemsBonus.agi + newAgiMorph;
+        elements.strSlider.value = stats.shardStr + state.itemsBonus.str + newStrMorph;
+        
         update();
       });
 
@@ -452,7 +536,14 @@
         e.target.value = '';
       });
 
-      // Первоначальное обновление
+      // Обработчики удаления предметов
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-item')) {
+          removeItem(e.target.getAttribute('data-id'));
+        }
+      });
+
+      // Первоначальная настройка
       updateItemsBonus();
       update();
     }
